@@ -161,3 +161,31 @@ regularizers.l1(0.001)
 # L1 and L2 regularization at the same time
 regularizers.l1_l2(l1=0.001, l2=0.001)
 """
+
+# Adding Dropout
+
+dpt_model = models.Sequential()
+dpt_model.add(layers.Dense(16, activation='relu', input_shape=(10000,)))
+dpt_model.add(layers.Dropout(0.5))
+dpt_model.add(layers.Dense(16, activation='relu'))
+dpt_model.add(layers.Dropout(0.5))
+dpt_model.add(layers.Dense(1, activation='sigmoid'))
+
+dpt_model.compile(optimizer='rmsprop',
+                  loss='binary_crossentropy',
+                  metrics=['acc'])
+
+dpt_model_hist = dpt_model.fit(x_train, y_train,
+                               epochs=20,
+                               batch_size=512,
+                               validation_data=(x_test, y_test))
+
+dpt_model_val_loss = dpt_model_hist.history['val_loss']
+
+plt.plot(epochs, original_val_loss, 'b+', label='Original model')
+plt.plot(epochs, dpt_model_val_loss, 'bo', label='Dropout-regularized model')
+plt.xlabel('Epochs')
+plt.ylabel('Validation loss')
+plt.legend()
+
+plt.show()
