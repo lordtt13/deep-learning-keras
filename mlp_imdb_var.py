@@ -80,3 +80,39 @@ plt.ylabel('Validation loss')
 plt.legend()
 
 plt.show()
+
+bigger_model = models.Sequential()
+bigger_model.add(layers.Dense(512, activation='relu', input_shape=(10000,)))
+bigger_model.add(layers.Dense(512, activation='relu'))
+bigger_model.add(layers.Dense(1, activation='sigmoid'))
+
+bigger_model.compile(optimizer='rmsprop',
+                     loss='binary_crossentropy',
+                     metrics=['acc'])
+
+bigger_model_hist = bigger_model.fit(x_train, y_train,
+                                     epochs=20,
+                                     batch_size=512,
+                                     validation_data=(x_test, y_test))
+
+bigger_model_val_loss = bigger_model_hist.history['val_loss']
+
+plt.plot(epochs, original_val_loss, 'b+', label='Original model')
+plt.plot(epochs, bigger_model_val_loss, 'bo', label='Bigger model')
+plt.xlabel('Epochs')
+plt.ylabel('Validation loss')
+plt.legend()
+
+plt.show()
+
+original_train_loss = original_hist.history['loss']
+bigger_model_train_loss = bigger_model_hist.history['loss']
+
+plt.plot(epochs, original_train_loss, 'b+', label='Original model')
+plt.plot(epochs, bigger_model_train_loss, 'bo', label='Bigger model')
+plt.xlabel('Epochs')
+plt.ylabel('Training loss')
+plt.legend()
+
+plt.show()
+
