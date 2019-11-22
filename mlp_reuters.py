@@ -13,7 +13,17 @@ from keras.datasets import reuters
 from keras.utils.np_utils import to_categorical
 
 
+# save np.load
+np_load_old = np.load
+
+# modify the default parameters of np.load
+np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+
+# call load_data with allow_pickle implicitly set to true
 (train_data, train_labels), (test_data, test_labels) = reuters.load_data(num_words=10000)
+
+# restore np.load for future normal usage
+np.load = np_load_old
 
 word_index = reuters.get_word_index()
 reverse_word_index = dict([(value, key) for (key, value) in word_index.items()])
@@ -93,4 +103,3 @@ plt.ylabel('Loss')
 plt.legend()
 
 plt.show()
-
