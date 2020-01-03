@@ -80,8 +80,8 @@ history = model.fit(partial_x_train,
 
 history_dict = history.history
 
-acc = history.history['acc']
-val_acc = history.history['val_acc']
+acc = history.history['binary_accuracy']
+val_acc = history.history['val_binary_accuracy']
 loss = history.history['loss']
 val_loss = history.history['val_loss']
 
@@ -100,8 +100,8 @@ plt.show()
 
 
 plt.clf()   # clear figure
-acc_values = history_dict['acc']
-val_acc_values = history_dict['val_acc']
+acc_values = history_dict['binary_accuracy']
+val_acc_values = history_dict['val_binary_accuracy']
 
 plt.plot(epochs, acc, 'bo', label='Training acc')
 plt.plot(epochs, val_acc, 'b', label='Validation acc')
