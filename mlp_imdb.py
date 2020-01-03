@@ -13,7 +13,17 @@ from keras.datasets import imdb
 from keras import models, layers, optimizers, losses, metrics
 
 
+# save np.load
+np_load_old = np.load
+
+# modify the default parameters of np.load
+np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+
+# call load_data with allow_pickle implicitly set to true
 (train_data, train_labels), (test_data, test_labels) = imdb.load_data(num_words=10000)
+
+# restore np.load for future normal usage
+np.load = np_load_old
 
 # word_index is a dictionary mapping words to an integer index
 word_index = imdb.get_word_index()
