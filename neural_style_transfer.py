@@ -4,8 +4,12 @@ Created on Tue Jan 28 22:40:57 2020
 
 @author: Tanmay Thakur
 """
+import time
 import numpy as np
+from matplotlib import pyplot as plt
 
+from scipy.optimize import fmin_l_bfgs_b
+from scipy.misc import imsave
 from keras import backend as K
 from keras.applications import vgg19
 from keras.preprocessing.image import load_img, img_to_array
@@ -178,3 +182,39 @@ class Evaluator(object):
         return grad_values
 
 evaluator = Evaluator()
+
+result_prefix = 'style_transfer_result'
+iterations = 20
+
+# Run scipy-based optimization (L-BFGS) over the pixels of the generated image
+# so as to minimize the neural style loss.
+# This is our initial state: the target image.
+# Note that `scipy.optimize.fmin_l_bfgs_b` can only process flat vectors.
+x = preprocess_image(target_image_path)
+x = x.flatten()
+for i in range(iterations):
+    print('Start of iteration', i)
+    start_time = time.time()
+    x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x,
+                                     fprime=evaluator.grads, maxfun=20)
+    print('Current loss value:', min_val)
+    # Save current generated image
+    img = x.copy().reshape((img_height, img_width, 3))
+    img = deprocess_image(img)
+    fname = result_prefix + '_at_iteration_%d.png' % i
+    imsave(fname, img)
+    end_time = time.time()
+    print('Image saved as', fname)
+    print('Iteration %d completed in %ds' % (i, end_time - start_time))
+    
+# Content image
+plt.imshow(load_img(target_image_path, target_size=(img_height, img_width)))
+plt.figure()
+
+# Style image
+plt.imshow(load_img(style_reference_image_path, target_size=(img_height, img_width)))
+plt.figure()
+
+# Generate image
+plt.imshow(img)
+plt.show()
