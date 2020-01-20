@@ -95,3 +95,86 @@ def total_variation_loss(x):
         x[:, :img_height - 1, :img_width - 1, :] - x[:, :img_height - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
+"""
+The loss that we minimize is a weighted average of these three losses. 
+To compute the content loss, we only leverage one top layer, the block5_conv2 layer, while for the style loss we use a list of layers than spans both low-level and high-level layers. 
+We add the total variation loss at the end.
+
+Depending on the style reference image and content image you are using, you will likely want to tune the content_weight coefficient, the contribution of the content loss to the total loss. 
+A higher content_weight means that the target content will be more recognizable in the generated image.
+"""
+
+# Dict mapping layer names to activation tensors
+outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
+# Name of layer used for content loss
+content_layer = 'block5_conv2'
+# Name of layers used for style loss
+style_layers = ['block1_conv1',
+                'block2_conv1',
+                'block3_conv1',
+                'block4_conv1',
+                'block5_conv1']
+# Weights in the weighted average of the loss components
+total_variation_weight = 1e-4
+style_weight = 1.
+content_weight = 0.025
+
+# Define the loss by adding all components to a `loss` variable
+loss = K.variable(0.)
+layer_features = outputs_dict[content_layer]
+target_image_features = layer_features[0, :, :, :]
+combination_features = layer_features[2, :, :, :]
+loss += content_weight * content_loss(target_image_features,
+                                      combination_features)
+for layer_name in style_layers:
+    layer_features = outputs_dict[layer_name]
+    style_reference_features = layer_features[1, :, :, :]
+    combination_features = layer_features[2, :, :, :]
+    sl = style_loss(style_reference_features, combination_features)
+    loss += (style_weight / len(style_layers)) * sl
+loss += total_variation_weight * total_variation_loss(combination_image)
+
+"""
+Finally, we set up the gradient descent process. 
+In the original Gatys et al. paper, optimization is performed using the L-BFGS algorithm, so that is also what we will use here. 
+This is a key difference from the Deep Dream example in the previous section. The L-BFGS algorithms comes packaged with SciPy. 
+However, there are two slight limitations with the SciPy implementation:
+
+It requires to be passed the value of the loss function and the value of the gradients as two separate functions.
+It can only be applied to flat vectors, whereas we have a 3D image array.
+It would be very inefficient for us to compute the value of the loss function and the value of gradients independently, since it would lead to a lot of redundant computation between the two. 
+We would be almost twice slower than we could be by computing them jointly. 
+To by-pass this, we set up a Python class named Evaluator that will compute both loss value and gradients value at once, will return the loss value when called the first time, and will cache the gradients for the next call.
+"""
+
+# Get the gradients of the generated image wrt the loss
+grads = K.gradients(loss, combination_image)[0]
+
+# Function to fetch the values of the current loss and the current gradients
+fetch_loss_and_grads = K.function([combination_image], [loss, grads])
+
+
+class Evaluator(object):
+
+    def __init__(self):
+        self.loss_value = None
+        self.grads_values = None
+
+    def loss(self, x):
+        assert self.loss_value is None
+        x = x.reshape((1, img_height, img_width, 3))
+        outs = fetch_loss_and_grads([x])
+        loss_value = outs[0]
+        grad_values = outs[1].flatten().astype('float64')
+        self.loss_value = loss_value
+        self.grad_values = grad_values
+        return self.loss_value
+
+    def grads(self, x):
+        assert self.loss_value is not None
+        grad_values = np.copy(self.grad_values)
+        self.loss_value = None
+        self.grad_values = None
+        return grad_values
+
+evaluator = Evaluator()
