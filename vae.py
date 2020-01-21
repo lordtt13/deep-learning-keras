@@ -68,3 +68,34 @@ def sampling(args):
     return z_mean + K.exp(z_log_var) * epsilon
 
 z = layers.Lambda(sampling)([z_mean, z_log_var])
+
+"""
+This is the decoder implementation: we reshape the vector z to the dimensions of an image, then we use a few convolution layers to obtain a final image output that has the same dimensions as the original input_img.
+"""
+
+# This is the input where we will feed `z`.
+decoder_input = layers.Input(K.int_shape(z)[1:])
+
+# Upsample to the correct number of units
+x = layers.Dense(np.prod(shape_before_flattening[1:]),
+                 activation='relu')(decoder_input)
+
+# Reshape into an image of the same shape as before our last `Flatten` layer
+x = layers.Reshape(shape_before_flattening[1:])(x)
+
+# We then apply then reverse operation to the initial
+# stack of convolution layers: a `Conv2DTranspose` layers
+# with corresponding parameters.
+x = layers.Conv2DTranspose(32, 3,
+                           padding='same', activation='relu',
+                           strides=(2, 2))(x)
+x = layers.Conv2D(1, 3,
+                  padding='same', activation='sigmoid')(x)
+# We end up with a feature map of the same size as the original input.
+
+# This is our decoder model.
+decoder = Model(decoder_input, x)
+
+# We then apply it to `z` to recover the decoded `z`.
+z_decoded = decoder(z)
+
