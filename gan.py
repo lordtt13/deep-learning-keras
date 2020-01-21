@@ -41,3 +41,30 @@ x = layers.LeakyReLU()(x)
 x = layers.Conv2D(channels, 7, activation='tanh', padding='same')(x)
 generator = keras.models.Model(generator_input, x)
 generator.summary()
+
+# Discriminator
+discriminator_input = layers.Input(shape=(height, width, channels))
+x = layers.Conv2D(128, 3)(discriminator_input)
+x = layers.LeakyReLU()(x)
+x = layers.Conv2D(128, 4, strides=2)(x)
+x = layers.LeakyReLU()(x)
+x = layers.Conv2D(128, 4, strides=2)(x)
+x = layers.LeakyReLU()(x)
+x = layers.Conv2D(128, 4, strides=2)(x)
+x = layers.LeakyReLU()(x)
+x = layers.Flatten()(x)
+
+# One dropout layer - important trick!
+x = layers.Dropout(0.4)(x)
+
+# Classification layer
+x = layers.Dense(1, activation='sigmoid')(x)
+
+discriminator = keras.models.Model(discriminator_input, x)
+discriminator.summary()
+
+# To stabilize training, we use learning rate decay
+# and gradient clipping (by value) in the optimizer.
+discriminator_optimizer = keras.optimizers.RMSprop(lr=0.0008, clipvalue=1.0, decay=1e-8)
+discriminator.compile(optimizer=discriminator_optimizer, loss='binary_crossentropy')
+
