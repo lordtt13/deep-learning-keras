@@ -6,11 +6,14 @@ Created on Mon Jan 20 22:58:31 2020
 """
 import keras
 import numpy as np
+import matplotlib.pyplot as plt
 
+from scipy.stats import norm
 from keras import layers
 from keras import backend as K
 from keras.models import Model
 from keras import backend as K
+from keras.datasets import mnist
 
 
 K.clear_session()
@@ -125,3 +128,50 @@ class CustomVariationalLayer(keras.layers.Layer):
 # We call our custom layer on the input and the decoded output,
 # to obtain the final model output.
 y = CustomVariationalLayer()([input_img, z_decoded])
+
+"""
+Finally, we instantiate and train the model.
+Since the loss has been taken care of in our custom layer, we don't specify an external loss at compile time (loss=None), which in turns means that we won't pass target data during training (as you can see we only pass x_train to the model in fit).
+"""
+
+vae = Model(input_img, y)
+vae.compile(optimizer='rmsprop', loss=None)
+vae.summary()
+
+# Train the VAE on MNIST digits
+(x_train, _), (x_test, y_test) = mnist.load_data()
+
+x_train = x_train.astype('float32') / 255.
+x_train = x_train.reshape(x_train.shape + (1,))
+x_test = x_test.astype('float32') / 255.
+x_test = x_test.reshape(x_test.shape + (1,))
+
+vae.fit(x=x_train, y=None,
+        shuffle=True,
+        epochs=10,
+        batch_size=batch_size,
+        validation_data=(x_test, None))
+
+# Display a 2D manifold of the digits
+n = 15  # figure with 15x15 digits
+digit_size = 28
+figure = np.zeros((digit_size * n, digit_size * n))
+# Linearly spaced coordinates on the unit square were transformed
+# through the inverse CDF (ppf) of the Gaussian
+# to produce values of the latent variables z,
+# since the prior of the latent space is Gaussian
+grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
+grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
+
+for i, yi in enumerate(grid_x):
+    for j, xi in enumerate(grid_y):
+        z_sample = np.array([[xi, yi]])
+        z_sample = np.tile(z_sample, batch_size).reshape(batch_size, 2)
+        x_decoded = decoder.predict(z_sample, batch_size=batch_size)
+        digit = x_decoded[0].reshape(digit_size, digit_size)
+        figure[i * digit_size: (i + 1) * digit_size,
+               j * digit_size: (j + 1) * digit_size] = digit
+
+plt.figure(figsize=(10, 10))
+plt.imshow(figure, cmap='Greys_r')
+plt.show()
