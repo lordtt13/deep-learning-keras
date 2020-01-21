@@ -99,3 +99,29 @@ decoder = Model(decoder_input, x)
 # We then apply it to `z` to recover the decoded `z`.
 z_decoded = decoder(z)
 
+"""
+The dual loss of a VAE doesn't fit the traditional expectation of a sample-wise function of the form loss(input, target). 
+Thus, we set up the loss by writing a custom layer with internally leverages the built-in add_loss layer method to create an arbitrary loss.
+"""
+
+class CustomVariationalLayer(keras.layers.Layer):
+
+    def vae_loss(self, x, z_decoded):
+        x = K.flatten(x)
+        z_decoded = K.flatten(z_decoded)
+        xent_loss = keras.metrics.binary_crossentropy(x, z_decoded)
+        kl_loss = -5e-4 * K.mean(
+            1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
+        return K.mean(xent_loss + kl_loss)
+
+    def call(self, inputs):
+        x = inputs[0]
+        z_decoded = inputs[1]
+        loss = self.vae_loss(x, z_decoded)
+        self.add_loss(loss, inputs=inputs)
+        # We don't use this output.
+        return x
+
+# We call our custom layer on the input and the decoded output,
+# to obtain the final model output.
+y = CustomVariationalLayer()([input_img, z_decoded])
